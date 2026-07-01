@@ -1,4 +1,4 @@
-package com.nov.eventify.model.enums;
+package com.nov.eventify.entity.enums;
 
 public enum EventFormat {
     ONLINE,
