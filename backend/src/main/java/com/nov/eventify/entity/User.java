@@ -35,6 +35,9 @@ public class User {
     @Column(name = "email", nullable = false, unique = true, length = 120)
     private String email;
 
+    @Column(name = "avatar_emoji", length = 16)
+    private String avatarEmoji;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 25)
     private UserRole role;
@@ -46,6 +49,5 @@ public class User {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    //TODO: avatar emoji
 
 }

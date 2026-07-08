@@ -9,20 +9,15 @@ import {
 	useState,
 	type ReactNode
 } from 'react'
-import type { AuthResponseDto, AuthUserDto } from '@/types/api'
+import type { AuthUserDto } from '@/types/api'
 import { revokeRefreshRequest } from '@/lib/api/authApi'
-import {
-	clearAuthStorage,
-	getStoredAccessToken,
-	getStoredUser,
-	persistAuth
-} from '@/lib/tokenStorage'
+import { clearAuthStorage, getStoredUser, persistAuthUser } from '@/lib/tokenStorage'
 
 type AuthContextValue = {
 	user: AuthUserDto | null
 	isAuthenticated: boolean
 	isHydrated: boolean
-	setSession: (response: AuthResponseDto) => void
+	setSession: (response: AuthUserDto) => void
 	clearSession: () => Promise<void>
 }
 
@@ -37,28 +32,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 		setHydrated(true)
 	}, [])
 
-	const setSession = useCallback((response: AuthResponseDto) => {
+	const setSession = useCallback((response: AuthUserDto) => {
 		const nextUser: AuthUserDto = {
+			id: response.id,
+			firebaseUid: response.firebaseUid,
 			username: response.username,
 			email: response.email,
 			role: response.role
 		}
-		persistAuth({
-			accessToken: response.token,
-			refreshToken: response.refreshToken,
-			user: nextUser
-		})
+		persistAuthUser(nextUser)
 		setUser(nextUser)
 	}, [])
 
 	const clearSession = useCallback(async () => {
-		const token = getStoredAccessToken()
-		if (token) {
-			try {
-				await revokeRefreshRequest()
-			} catch {
-				// Local logout should still complete if token revocation fails.
-			}
+		try {
+			await revokeRefreshRequest()
+		} catch {
+			// Local logout should still complete if Firebase sign-out fails.
 		}
 		clearAuthStorage()
 		setUser(null)

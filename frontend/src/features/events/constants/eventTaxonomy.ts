@@ -4,7 +4,6 @@ export const EVENT_CATEGORY_OPTIONS: Option[] = [
 	{ value: 'conference', label: 'Конференція' },
 	{ value: 'meetup', label: 'Мітап' },
 	{ value: 'workshop', label: 'Воркшоп' },
-	{ value: 'webinar', label: 'Вебінар' },
 	{ value: 'hackathon', label: 'Хакатон' }
 ]
 

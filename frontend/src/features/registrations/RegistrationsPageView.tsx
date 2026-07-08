@@ -106,7 +106,7 @@ export const RegistrationsPageView = () => {
 								>
 									<td className='px-6 py-4'>
 										<Link
-											href={`/events?open=${item.eventId}`}
+											href={`/events/${item.eventId}`}
 											className='font-semibold text-purple-700 hover:text-purple-800'
 										>
 											{item.eventTitle}
@@ -135,7 +135,7 @@ export const RegistrationsPageView = () => {
 									Подія
 								</p>
 								<Link
-									href={`/events?open=${item.eventId}`}
+									href={`/events/${item.eventId}`}
 									className='mt-1 text-lg font-semibold text-purple-700'
 								>
 									{item.eventTitle}

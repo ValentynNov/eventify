@@ -1,7 +1,7 @@
 import type { AuthUserDto } from '@/types/api'
 
-const ACCESS = 'eventify_access_token'
-const REFRESH = 'eventify_refresh_token'
+const ACCESS = 'eventify_firebase_id_token'
+const REFRESH = 'eventify_firebase_refresh_token'
 const USER = 'eventify_user'
 
 export const getStoredAccessToken = (): string | null => {
@@ -30,12 +30,19 @@ export const persistAuth = (tokens: {
 	refreshToken: string
 	user: AuthUserDto
 }): void => {
+	if (typeof window === 'undefined') return
 	window.localStorage.setItem(ACCESS, tokens.accessToken)
 	window.localStorage.setItem(REFRESH, tokens.refreshToken)
 	window.localStorage.setItem(USER, JSON.stringify(tokens.user))
 }
 
+export const persistAuthUser = (user: AuthUserDto): void => {
+	if (typeof window === 'undefined') return
+	window.localStorage.setItem(USER, JSON.stringify(user))
+}
+
 export const clearAuthStorage = (): void => {
+	if (typeof window === 'undefined') return
 	window.localStorage.removeItem(ACCESS)
 	window.localStorage.removeItem(REFRESH)
 	window.localStorage.removeItem(USER)

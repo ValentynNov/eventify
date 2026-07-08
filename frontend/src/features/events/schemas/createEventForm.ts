@@ -4,7 +4,6 @@ const eventCategorySchema = z.enum([
 	'conference',
 	'meetup',
 	'workshop',
-	'webinar',
 	'hackathon'
 ])
 

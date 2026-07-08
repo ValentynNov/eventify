@@ -8,8 +8,6 @@ export const useLogin = () => {
 	const { setSession } = useAuth()
 	return useMutation({
 		mutationFn: loginRequest,
-		onSuccess: (data) => {
-			setSession(data)
-		}
+		onSuccess: setSession
 	})
 }

@@ -208,37 +208,42 @@ export const HomePageView = () => {
 											</tr>
 										</thead>
 										<tbody className='divide-y divide-gray-100'>
-											{recentRegs.map(row => (
-												<tr
-													key={row.id}
-													className='bg-white'
-												>
-													<td className='px-4 py-3'>
-														<div className='flex items-center gap-2'>
-															<span className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800'>
-																{initialsFromUsername(row.username)}
-															</span>
-															<span className='font-medium text-gray-900'>
-																{row.username}
-															</span>
-														</div>
-													</td>
-													<td className='max-w-35 truncate px-4 py-3 text-gray-600'>
-														<Link
-															href={`/events/${row.eventId}`}
-															className='font-medium text-violet-700 hover:underline'
-														>
-															{row.eventTitle}
-														</Link>
-													</td>
-													<td className='px-4 py-3'>
-														<RegistrationBadge status={row.status} />
-													</td>
-													<td className='hidden whitespace-nowrap px-4 py-3 text-gray-500 sm:table-cell'>
-														{formatDateTimeUtc(row.createdAt)}
-													</td>
-												</tr>
-											))}
+											{recentRegs.map(row => {
+												const username =
+													row.username ?? auth.user?.username ?? 'Користувач'
+
+												return (
+													<tr
+														key={row.id}
+														className='bg-white'
+													>
+														<td className='px-4 py-3'>
+															<div className='flex items-center gap-2'>
+																<span className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-800'>
+																	{initialsFromUsername(username)}
+																</span>
+																<span className='font-medium text-gray-900'>
+																	{username}
+																</span>
+															</div>
+														</td>
+														<td className='max-w-35 truncate px-4 py-3 text-gray-600'>
+															<Link
+																href={`/events/${row.eventId}`}
+																className='font-medium text-violet-700 hover:underline'
+															>
+																{row.eventTitle}
+															</Link>
+														</td>
+														<td className='px-4 py-3'>
+															<RegistrationBadge status={row.status} />
+														</td>
+														<td className='hidden px-4 py-3 text-gray-500 sm:table-cell'>
+															{formatDateTimeUtc(row.createdAt)}
+														</td>
+													</tr>
+												)
+											})}
 										</tbody>
 									</table>
 								</div>

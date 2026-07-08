@@ -15,7 +15,7 @@ public record UserProfileResponse(
         long rejectedRegistrationCount,
         int streakDays,
         List<FavoriteCategoryResponse> favoriteCategories,
-        List<CreateRegistrationResponse> recentRegistrations,
+        List<RegistrationResponse> recentRegistrations,
         List<AchievementResponse> achievements
 ) {
 }

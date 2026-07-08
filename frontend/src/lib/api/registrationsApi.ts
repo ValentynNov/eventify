@@ -1,4 +1,9 @@
 import { apiClient } from '@/lib/api/client'
+import {
+	denormalizeStatus,
+	normalizePage,
+	normalizeRegistrationDto
+} from '@/lib/api/normalizers'
 import type {
 	AdminRegistrationsQueryParams,
 	PagedResponse,
@@ -10,11 +15,16 @@ import type {
 export const fetchMyRegistrations = async (
 	params?: RegistrationsQueryParams
 ): Promise<PagedResponse<RegistrationDto>> => {
-	const { data } = await apiClient.get<PagedResponse<RegistrationDto>>(
-		'/api/registrations/me',
-		{ params }
+	const { data } = await apiClient.get<RegistrationDto[]>(
+		'/api/registrations/me'
 	)
-	return data
+	return {
+		items: data.map(normalizeRegistrationDto),
+		pageNumber: params?.pageNumber ?? 1,
+		pageSize: params?.pageSize ?? data.length,
+		totalCount: data.length,
+		totalPages: 1
+	}
 }
 
 export const createRegistration = async (
@@ -23,7 +33,7 @@ export const createRegistration = async (
 	const { data } = await apiClient.post<RegistrationDto>(
 		`/api/registrations/events/${eventId}`
 	)
-	return data
+	return normalizeRegistrationDto(data)
 }
 
 export const fetchMyRegistrationStreak =
@@ -39,11 +49,18 @@ export const fetchMyRegistrationStreak =
 export const fetchAllRegistrations = async (
 	params?: AdminRegistrationsQueryParams
 ): Promise<PagedResponse<RegistrationDto>> => {
+	const apiParams = {
+		...params,
+		page: params?.pageNumber ? Math.max(0, params.pageNumber - 1) : undefined,
+		pageSize: params?.pageSize,
+		status: params?.status ? denormalizeStatus(params.status) : undefined,
+		pageNumber: undefined
+	}
 	const { data } = await apiClient.get<PagedResponse<RegistrationDto>>(
 		'/api/registrations',
-		{ params }
+		{ params: apiParams }
 	)
-	return data
+	return normalizePage(data, normalizeRegistrationDto)
 }
 
 export const patchRegistrationStatus = async (
@@ -52,7 +69,7 @@ export const patchRegistrationStatus = async (
 ): Promise<RegistrationDto> => {
 	const { data } = await apiClient.patch<RegistrationDto>(
 		`/api/registrations/${registrationId}/status`,
-		{ status }
+		{ status: denormalizeStatus(status) }
 	)
-	return data
+	return normalizeRegistrationDto(data)
 }

@@ -32,13 +32,12 @@ public class EventService {
 
         Pageable pageable = PageRequest.of(page, pageSize, Sort.by("eventDate").ascending());
 
-        Specification<Event> spec = Specification.allOf(
-                searchSpec(search),
-                categorySpec(category),
-                formatSpec(format),
-                fromSpec(from),
-                toSpec(to)
-        );
+        Specification<Event> spec = Specification.<Event>unrestricted();
+        spec = andIfPresent(spec, searchSpec(search));
+        spec = andIfPresent(spec, categorySpec(category));
+        spec = andIfPresent(spec, formatSpec(format));
+        spec = andIfPresent(spec, fromSpec(from));
+        spec = andIfPresent(spec, toSpec(to));
 
         Page<Event> events = eventRepository.findAll(spec, pageable);
 
@@ -121,6 +120,13 @@ public class EventService {
                 cb.like(cb.lower(root.get("description")), pattern),
                 cb.like(cb.lower(root.get("location")), pattern)
         ));
+    }
+
+    private Specification<Event> andIfPresent(
+            Specification<Event> base,
+            Specification<Event> next
+    ) {
+        return next == null ? base : base.and(next);
     }
 
 

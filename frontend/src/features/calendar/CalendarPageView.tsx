@@ -207,7 +207,7 @@ export const CalendarPageView = () => {
 											).map(ev => (
 												<Link
 													key={ev.id}
-													href={`/events?open=${ev.id}`}
+													href={`/events/${ev.id}`}
 													className='block rounded-lg border border-purple-100 bg-purple-50 px-3 py-2 text-xs font-medium text-purple-900 transition hover:border-purple-300'
 												>
 													<p className='line-clamp-2 leading-snug'>

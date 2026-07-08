@@ -5,7 +5,7 @@ import com.nov.eventify.entity.enums.RegistrationStatus;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record CreateRegistrationResponse(
+public record RegistrationResponse(
         UUID id,
         RegistrationStatus status,
         LocalDateTime createdAt,

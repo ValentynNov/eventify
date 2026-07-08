@@ -6,7 +6,9 @@ import { SearchInput } from '@/components/core/SearchInput/SearchInput'
 import { Select, type SelectOption } from '@/components/core/Select/Select'
 import { Skeleton } from '@/components/core/Skeleton/Skeleton'
 import { Input } from '@/components/core/Input/Input'
+import { useAuth } from '@/contexts/authContext'
 import { EventCard } from '@/features/events/components/EventCard'
+import { CreateEventModal } from '@/features/events/components/CreateEventModal'
 import { EventsPagination } from '@/features/events/components/EventsPagination'
 import {
 	EVENT_CATEGORY_OPTIONS,
@@ -17,8 +19,10 @@ import {
 	type EventsExplorerSortToken
 } from '@/features/events/hooks/useEventsExplorerState'
 import { extractApiMessage } from '@/lib/apiError'
-import { CalendarOff, Filter, RotateCcw } from 'lucide-react'
+import { isAdminUser } from '@/lib/auth/isAdmin'
+import { CalendarOff, Filter, Plus, RotateCcw } from 'lucide-react'
 import Link from 'next/link'
+import { useState } from 'react'
 
 const SORT_OPTIONS: SelectOption[] = [
 	{ value: 'date_asc', label: 'Дата: найраніші' },
@@ -63,6 +67,8 @@ export const EventsExplorer = ({
 	compactEmpty,
 	showPagination = true
 }: Props) => {
+	const auth = useAuth()
+	const [createOpen, setCreateOpen] = useState(false)
 	const {
 		search,
 		onSearchChange,
@@ -96,6 +102,22 @@ export const EventsExplorer = ({
 
 	return (
 		<div className='space-y-6'>
+			{isAdminUser(auth.user?.role) ? (
+				<div className='flex justify-end'>
+					<Button
+						type='button'
+						className='h-11 rounded-xl px-4'
+						onClick={() => setCreateOpen(true)}
+					>
+						<Plus
+							className='h-4 w-4'
+							aria-hidden
+						/>
+						Створити подію
+					</Button>
+				</div>
+			) : null}
+
 			<div className='space-y-4'>
 				<div className='flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between'>
 					<div className='w-full min-w-0 flex-1'>
@@ -277,6 +299,11 @@ export const EventsExplorer = ({
 					isDisabled={isLoading}
 				/>
 			) : null}
+
+			<CreateEventModal
+				isOpen={createOpen}
+				onClose={() => setCreateOpen(false)}
+			/>
 		</div>
 	)
 }

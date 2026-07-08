@@ -17,7 +17,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/events")
 @RequiredArgsConstructor
-public class EventsController {
+public class EventController {
 
     private final EventService eventService;
 
@@ -35,7 +35,7 @@ public class EventsController {
     }
 
     @GetMapping("/{id}")
-    public EventResponse getEvent(@RequestParam UUID id) {
+    public EventResponse getEvent(@PathVariable UUID id) {
         return eventService.getEvent(id);
     }
 
@@ -51,7 +51,7 @@ public class EventsController {
         return eventService.updateEvent(id, request);
     }
 
-    @DeleteMapping
+    @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteEvent(@PathVariable UUID id){
         eventService.deleteEvent(id);

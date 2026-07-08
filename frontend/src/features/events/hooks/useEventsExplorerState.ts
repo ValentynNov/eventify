@@ -2,7 +2,7 @@
 
 import { useDebouncedValue } from '@/lib/hooks/useDebouncedValue'
 import { useEvents } from '@/queries/useEvents'
-import type { EventQueryParams } from '@/types/api'
+import type { EventDto, EventQueryParams, PagedResponse } from '@/types/api'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
@@ -33,7 +33,6 @@ const ALLOWED_CATEGORY = new Set([
 	'conference',
 	'meetup',
 	'workshop',
-	'webinar',
 	'hackathon'
 ])
 const ALLOWED_DATE_PRESET = new Set(['today', 'tomorrow', 'week', 'month'])
@@ -106,6 +105,154 @@ function sortToApiParams(
 			return { sortBy: 'nearest', sortOrder: 'asc' }
 		default:
 			return { sortBy: 'date', sortOrder: 'asc' }
+	}
+}
+
+const startOfLocalDay = (date: Date): Date =>
+	new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+const endOfLocalDay = (date: Date): Date =>
+	new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999)
+
+const matchesDatePreset = (event: EventDto, preset: string, now: Date): boolean => {
+	if (!preset) return true
+
+	const eventTime = new Date(event.date).getTime()
+	const todayStart = startOfLocalDay(now)
+
+	if (preset === 'today') {
+		return eventTime >= todayStart.getTime() && eventTime <= endOfLocalDay(now).getTime()
+	}
+
+	if (preset === 'tomorrow') {
+		const tomorrow = new Date(todayStart)
+		tomorrow.setDate(tomorrow.getDate() + 1)
+		return (
+			eventTime >= tomorrow.getTime() &&
+			eventTime <= endOfLocalDay(tomorrow).getTime()
+		)
+	}
+
+	if (preset === 'week') {
+		const weekEnd = new Date(todayStart)
+		weekEnd.setDate(weekEnd.getDate() + 7)
+		return eventTime >= todayStart.getTime() && eventTime <= weekEnd.getTime()
+	}
+
+	if (preset === 'month') {
+		const monthEnd = new Date(todayStart)
+		monthEnd.setMonth(monthEnd.getMonth() + 1)
+		return eventTime >= todayStart.getTime() && eventTime <= monthEnd.getTime()
+	}
+
+	return true
+}
+
+const filterEvents = (
+	items: EventDto[],
+	params: EventQueryParams
+): EventDto[] => {
+	const now = new Date()
+	const search = params.search?.trim().toLowerCase()
+	const location = params.location?.trim().toLowerCase()
+
+	return items.filter(event => {
+		const eventTime = new Date(event.date).getTime()
+		const approved = event.approvedRegistrationCount ?? 0
+		const freeSpots = event.capacity - approved
+
+		if (
+			search &&
+			![event.title, event.description, event.location]
+				.join(' ')
+				.toLowerCase()
+				.includes(search)
+		) {
+			return false
+		}
+
+		if (location && !event.location.toLowerCase().includes(location)) {
+			return false
+		}
+
+		if (params.category && event.category !== params.category) return false
+		if (params.format && event.format !== params.format) return false
+
+		if (params.status === 'upcoming' && eventTime < now.getTime()) return false
+		if (params.status === 'finished' && eventTime >= now.getTime()) return false
+		if (params.status === 'ongoing') {
+			const oneHourMs = 60 * 60 * 1000
+			if (eventTime > now.getTime() || eventTime < now.getTime() - oneHourMs) {
+				return false
+			}
+		}
+
+		if (params.availability === 'available' && freeSpots <= 0) return false
+		if (params.availability === 'spots' && freeSpots <= 0) return false
+		if (params.availability === 'full' && freeSpots > 0) return false
+
+		return matchesDatePreset(event, params.datePreset ?? '', now)
+	})
+}
+
+const sortEvents = (
+	items: EventDto[],
+	sort: EventsExplorerSortToken
+): EventDto[] => {
+	const sorted = [...items]
+	const byDate = (a: EventDto, b: EventDto) =>
+		new Date(a.date).getTime() - new Date(b.date).getTime()
+	const byCreated = (a: EventDto, b: EventDto) =>
+		new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+
+	switch (sort) {
+		case 'date_desc':
+			return sorted.sort((a, b) => byDate(b, a))
+		case 'title_asc':
+			return sorted.sort((a, b) => a.title.localeCompare(b.title, 'uk'))
+		case 'title_desc':
+			return sorted.sort((a, b) => b.title.localeCompare(a.title, 'uk'))
+		case 'created_desc':
+			return sorted.sort((a, b) => byCreated(b, a))
+		case 'created_asc':
+			return sorted.sort(byCreated)
+		case 'capacity_desc':
+			return sorted.sort((a, b) => b.capacity - a.capacity)
+		case 'capacity_asc':
+			return sorted.sort((a, b) => a.capacity - b.capacity)
+		case 'popularity':
+			return sorted.sort(
+				(a, b) =>
+					(b.approvedRegistrationCount ?? 0) -
+					(a.approvedRegistrationCount ?? 0)
+			)
+		case 'nearest':
+			return sorted
+				.filter(event => new Date(event.date).getTime() >= Date.now())
+				.sort(byDate)
+		case 'date_asc':
+		default:
+			return sorted.sort(byDate)
+	}
+}
+
+const paginateEvents = (
+	items: EventDto[],
+	page: number,
+	pageSize: number
+): PagedResponse<EventDto> => {
+	const totalPages = Math.max(1, Math.ceil(items.length / pageSize))
+	const safePage = Math.min(Math.max(1, page), totalPages)
+	const start = (safePage - 1) * pageSize
+
+	return {
+		items: items.slice(start, start + pageSize),
+		pageNumber: safePage,
+		pageSize,
+		totalCount: items.length,
+		totalPages,
+		hasNext: safePage < totalPages,
+		hasPrevious: safePage > 1
 	}
 }
 
@@ -186,12 +333,21 @@ export const useEventsExplorerState = ({ pageSize }: Args) => {
 	}, [pageSize, searchParamString])
 
 	const {
-		data,
+		data: rawData,
 		isLoading,
 		error,
 		refetch,
 		isFetching
-	} = useEvents(queryParams)
+	} = useEvents({
+		pageNumber: 1,
+		pageSize: 1000
+	})
+
+	const data = useMemo(() => {
+		const filtered = filterEvents(rawData?.items ?? [], queryParams)
+		const sorted = sortEvents(filtered, parseSortFromSearchParams(new URLSearchParams(searchParamString)))
+		return paginateEvents(sorted, queryParams.pageNumber ?? 1, pageSize)
+	}, [pageSize, queryParams, rawData?.items, searchParamString])
 
 	const patchUrl = useCallback(
 		(mutate: (p: URLSearchParams) => void) => {

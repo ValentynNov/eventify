@@ -1,6 +1,8 @@
 package com.nov.eventify.security;
 
 import com.google.firebase.auth.FirebaseToken;
+import com.nov.eventify.entity.enums.UserRole;
+import com.nov.eventify.repository.UserRepository;
 import com.nov.eventify.service.FirebaseAuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -21,6 +23,7 @@ import java.util.List;
 public class FirebaseAuthFilter extends OncePerRequestFilter {
 
     private final FirebaseAuthService firebaseAuthService;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -42,9 +45,12 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
                 firebaseToken.getEmail()
         );
 
-        String role = (String) firebaseToken.getClaims().getOrDefault("role", "USER");
+        UserRole role = userRepository.findByFirebaseUid(firebaseToken.getUid())
+                .map(user -> user.getRole())
+                .orElseGet(() -> resolveRole(firebaseToken.getEmail()));
+
         List<SimpleGrantedAuthority> authorities =
-                List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
 
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(principal, null, authorities);
@@ -52,5 +58,12 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         filterChain.doFilter(request, response);
+    }
+
+    private UserRole resolveRole(String email) {
+        if (email != null && email.endsWith("@admin.eventify")) {
+            return UserRole.ADMIN;
+        }
+        return UserRole.USER;
     }
 }

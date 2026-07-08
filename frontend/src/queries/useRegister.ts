@@ -8,8 +8,6 @@ export const useRegister = () => {
 	const { setSession } = useAuth()
 	return useMutation({
 		mutationFn: registerRequest,
-		onSuccess: (data) => {
-			setSession(data)
-		}
+		onSuccess: setSession
 	})
 }

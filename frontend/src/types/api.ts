@@ -3,6 +3,7 @@ export type EventDto = {
 	title: string
 	description: string
 	date: string
+	eventDate?: string
 	location: string
 	capacity: number
 	createdAt: string
@@ -12,36 +13,41 @@ export type EventDto = {
 }
 
 export type RegistrationStatusDto = 'Pending' | 'Approved' | 'Rejected'
+export type ApiRegistrationStatusDto = 'PENDING' | 'APPROVED' | 'REJECTED'
 
 export type RegistrationDto = {
 	id: string
-	userId: string
-	username: string
+	userId?: string
+	username?: string
+	email?: string
 	eventId: string
 	eventTitle: string
 	eventCategory?: string
 	eventFormat?: string
+	location?: string
+	capacity?: number
+	eventDate?: string
 	status: RegistrationStatusDto
 	createdAt: string
+	updatedAt?: string
+	event?: EventDto
 }
 
 export type RegistrationStreakDto = {
 	days: number
-	lastRegistrationAt: string | null
+	lastRegistrationAt?: string | null
 }
 
 export type AuthUserDto = {
+	id?: string
+	firebaseUid?: string
 	username: string
 	email: string
 	role: string
 }
 
-export type AuthResponseDto = AuthUserDto & {
-	token: string
-	refreshToken: string
-	expiresAt: string
-	refreshTokenExpiresAt: string
-}
+export type CurrentUserDto = AuthUserDto
+export type AuthResponseDto = AuthUserDto
 
 export type PagedResponse<T> = {
 	items: T[]
@@ -49,6 +55,8 @@ export type PagedResponse<T> = {
 	pageSize: number
 	totalCount: number
 	totalPages: number
+	hasNext?: boolean
+	hasPrevious?: boolean
 }
 
 export type EventQueryParams = {
@@ -75,4 +83,27 @@ export type RegistrationsQueryParams = {
 export type AdminRegistrationsQueryParams = RegistrationsQueryParams & {
 	eventId?: string
 	status?: RegistrationStatusDto
+}
+
+export type AchievementDto = {
+	title: string
+	description: string
+	unlocked: boolean
+}
+
+export type FavoriteCategoryDto = {
+	category: string
+	count: number
+}
+
+export type UserProfileDto = AuthUserDto & {
+	avatarEmoji: string | null
+	totalRegistrationCount: number
+	approvedRegistrationCount: number
+	pendingRegistrationCount: number
+	rejectedRegistrationCount: number
+	streakDays: number
+	favoriteCategories: FavoriteCategoryDto[]
+	recentRegistrations: RegistrationDto[]
+	achievements: AchievementDto[]
 }

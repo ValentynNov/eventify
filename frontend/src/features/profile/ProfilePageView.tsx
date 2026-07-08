@@ -16,9 +16,9 @@ import { categoryLabel } from '@/features/events/labels/eventDisplay'
 import { extractApiMessage } from '@/lib/apiError'
 import { formatDateTimeUtc } from '@/lib/datetime'
 import { initialsFromUsername } from '@/lib/initialsFromUsername'
-import { useRegistrationStreak } from '@/queries/useRegistrationStreak'
-import { useRegistrations } from '@/queries/useRegistrations'
-import type { RegistrationDto } from '@/types/api'
+import { useProfile } from '@/queries/useProfile'
+import { useUpdateAvatar } from '@/queries/useUpdateAvatar'
+import type { AchievementDto } from '@/types/api'
 import {
 	Award,
 	BadgeCheck,
@@ -29,7 +29,7 @@ import {
 	UserRound
 } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 
 type Achievement = {
 	id: string
@@ -38,9 +38,6 @@ type Achievement = {
 	unlocked: boolean
 	icon: typeof Award
 }
-
-const getAvatarStorageKey = (email: string | undefined): string =>
-	`eventify_avatar_emoji:${email ?? 'guest'}`
 
 const getFirstGrapheme = (value: string): string => {
 	const trimmed = value.trim()
@@ -52,111 +49,52 @@ const getFirstGrapheme = (value: string): string => {
 const isEmoji = (value: string): boolean =>
 	/\p{Extended_Pictographic}/u.test(value)
 
-const countStatuses = (items: RegistrationDto[]) => ({
-	total: items.length,
-	pending: items.filter(item => item.status === 'Pending').length,
-	approved: items.filter(item => item.status === 'Approved').length,
-	rejected: items.filter(item => item.status === 'Rejected').length
+const achievementIcons: Record<string, typeof Award> = {
+	'Перший крок': CalendarCheck2,
+	'Учасник ком’юніті': BadgeCheck,
+	"Учасник ком'юніті": BadgeCheck,
+	'Гаряча серія': Flame,
+	'Постійний гість': Trophy,
+	'Колекціонер подій': Award,
+	'Дослідник форматів': Sparkles
+}
+
+const toAchievement = (achievement: AchievementDto): Achievement => ({
+	id: achievement.title,
+	title: achievement.title,
+	description: achievement.description,
+	unlocked: achievement.unlocked,
+	icon: achievementIcons[achievement.title] ?? Award
 })
 
 export const ProfilePageView = () => {
 	const { user } = useAuth()
-	const [avatarEmoji, setAvatarEmoji] = useState<string | null>(null)
 	const [avatarDraft, setAvatarDraft] = useState('')
 	const [avatarError, setAvatarError] = useState('')
-	const registrations = useRegistrations({
-		pageNumber: 1,
-		pageSize: 100,
-		sortBy: 'createdat',
-		sortOrder: 'desc'
-	})
-	const streak = useRegistrationStreak()
-	const avatarStorageKey = getAvatarStorageKey(user?.email)
+	const profile = useProfile()
+	const avatarMutation = useUpdateAvatar()
 
-	useEffect(() => {
-		if (!user?.email) return
-		const stored = window.localStorage.getItem(avatarStorageKey)
-		setAvatarEmoji(stored)
-		setAvatarDraft('')
-		setAvatarError('')
-	}, [avatarStorageKey, user?.email])
+	const data = profile.data
+	const avatarEmoji = data?.avatarEmoji ?? null
 
-	const selectAvatarEmoji = () => {
-		if (avatarEmoji) return
+	const selectAvatarEmoji = async () => {
+		if (avatarEmoji || avatarMutation.isPending) return
 		const emoji = getFirstGrapheme(avatarDraft)
 		if (!emoji || !isEmoji(emoji)) {
 			setAvatarError('Вставте один емодзі')
 			return
 		}
-		setAvatarEmoji(emoji)
-		window.localStorage.setItem(avatarStorageKey, emoji)
-		setAvatarDraft('')
-		setAvatarError('')
+
+		try {
+			await avatarMutation.mutateAsync(emoji)
+			setAvatarDraft('')
+			setAvatarError('')
+		} catch (error) {
+			setAvatarError(extractApiMessage(error, 'Не вдалося зберегти аватар'))
+		}
 	}
 
-	const rows = registrations.data?.items ?? []
-	const stats = useMemo(() => countStatuses(rows), [rows])
-	const favoriteCategories = useMemo(() => {
-		const counts = new Map<string, number>()
-		rows.forEach(row => {
-			const category = row.eventCategory
-			if (category) counts.set(category, (counts.get(category) ?? 0) + 1)
-		})
-
-		return [...counts.entries()]
-			.sort((a, b) => b[1] - a[1])
-			.slice(0, 3)
-	}, [rows])
-
-	const achievements = useMemo<Achievement[]>(() => {
-		const days = streak.data?.days ?? 0
-		return [
-			{
-				id: 'first-registration',
-				title: 'Перший крок',
-				description: 'Подати першу заявку на подію.',
-				unlocked: stats.total >= 1,
-				icon: CalendarCheck2
-			},
-			{
-				id: 'approved-member',
-				title: 'Учасник комʼюніті',
-				description: 'Отримати першу схвалену заявку.',
-				unlocked: stats.approved >= 1,
-				icon: BadgeCheck
-			},
-			{
-				id: 'streak-3',
-				title: 'Гаряча серія',
-				description: 'Реєструватися 3 дні поспіль.',
-				unlocked: days >= 3,
-				icon: Flame
-			},
-			{
-				id: 'regular-guest',
-				title: 'Постійний гість',
-				description: 'Отримати 3 схвалені заявки на події.',
-				unlocked: stats.approved >= 3,
-				icon: Trophy
-			},
-			{
-				id: 'event-collector',
-				title: 'Колекціонер подій',
-				description: 'Подати заявки на 5 різних подій.',
-				unlocked: stats.total >= 5,
-				icon: Award
-			},
-			{
-				id: 'category-explorer',
-				title: 'Дослідник форматів',
-				description: 'Відвідати події щонайменше у 3 категоріях.',
-				unlocked: favoriteCategories.length >= 3 && stats.approved >= 3,
-				icon: Sparkles
-			}
-		]
-	}, [favoriteCategories.length, stats.approved, stats.total, streak.data?.days])
-
-	if (registrations.isLoading || streak.isLoading) {
+	if (profile.isLoading) {
 		return (
 			<div className='flex min-h-[50vh] items-center justify-center'>
 				<Loader label='Завантаження профілю…' />
@@ -164,15 +102,18 @@ export const ProfilePageView = () => {
 		)
 	}
 
-	if (registrations.error) {
+	if (profile.error || !data) {
 		return (
 			<div className='mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-10'>
 				<p className='rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700'>
-					{extractApiMessage(registrations.error, 'Не вдалося завантажити профіль')}
+					{extractApiMessage(profile.error, 'Не вдалося завантажити профіль')}
 				</p>
 			</div>
 		)
 	}
+
+	const rows = data.recentRegistrations
+	const achievements = data.achievements.map(toAchievement)
 
 	return (
 		<div className='mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6 lg:px-10'>
@@ -184,8 +125,8 @@ export const ProfilePageView = () => {
 						</div>
 						<div className='min-w-0 flex-1'>
 							<p className='text-sm text-violet-100'>Профіль Eventify</p>
-							<h1 className='truncate text-3xl font-bold'>{user?.username}</h1>
-							<p className='mt-1 text-sm text-gray-300'>{user?.email}</p>
+							<h1 className='truncate text-3xl font-bold'>{data.username}</h1>
+							<p className='mt-1 text-sm text-gray-300'>{data.email}</p>
 							{avatarEmoji ? (
 								<p className='mt-4 inline-flex rounded-lg bg-white/10 px-3 py-2 text-xs font-semibold text-violet-100 ring-1 ring-white/15'>
 									Аватар обрано назавжди
@@ -207,26 +148,26 @@ export const ProfilePageView = () => {
 										type='button'
 										onClick={selectAvatarEmoji}
 										className='h-10 shrink-0 rounded-lg bg-white px-4 text-sm font-semibold text-gray-950 transition hover:bg-violet-50 disabled:opacity-50'
-										disabled={!avatarDraft.trim()}
+										disabled={!avatarDraft.trim() || avatarMutation.isPending}
 									>
-										Обрати
+										{avatarMutation.isPending ? 'Збереження…' : 'Обрати'}
 									</button>
 								</div>
 							)}
 						</div>
 						<Badge className='ml-auto border-0 bg-white/15 px-4 py-1.5 text-white'>
 							<UserRound className='mr-1.5 h-4 w-4' aria-hidden />
-							{user?.role}
+							{data.role}
 						</Badge>
 					</div>
 				</div>
 				<div className='grid gap-px bg-gray-200 sm:grid-cols-4'>
-					<StatCell label='Реєстрацій' value={stats.total} />
-					<StatCell label='Схвалено' value={stats.approved} />
-					<StatCell label='Очікує' value={stats.pending} />
+					<StatCell label='Реєстрацій' value={data.totalRegistrationCount} />
+					<StatCell label='Схвалено' value={data.approvedRegistrationCount} />
+					<StatCell label='Очікує' value={data.pendingRegistrationCount} />
 					<StatCell
 						label='Streak'
-						value={streak.data?.days ? `🔥 ${streak.data.days}` : 0}
+						value={data.streakDays ? `🔥 ${data.streakDays}` : 0}
 					/>
 				</div>
 			</section>
@@ -284,9 +225,9 @@ export const ProfilePageView = () => {
 						</div>
 					</CardHeader>
 					<CardContent>
-						{favoriteCategories.length ? (
+						{data.favoriteCategories.length ? (
 							<div className='space-y-3'>
-								{favoriteCategories.map(([category, count]) => (
+								{data.favoriteCategories.map(({ category, count }) => (
 									<div
 										key={category}
 										className='flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3'
