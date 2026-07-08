@@ -9,6 +9,6 @@ public record CreateRegistrationResponse(
         UUID id,
         RegistrationStatus status,
         LocalDateTime createdAt,
-        EvenetShortResponse event
+        EventShortResponse event
 ) {
 }

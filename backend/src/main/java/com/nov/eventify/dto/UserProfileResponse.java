@@ -1,5 +1,6 @@
 package com.nov.eventify.dto;
 
+import java.util.List;
 import java.util.UUID;
 
 public record UserProfileResponse(
@@ -14,7 +15,7 @@ public record UserProfileResponse(
         long rejectedRegistrationCount,
         int streakDays,
         List<FavoriteCategoryResponse> favoriteCategories,
-        List<RegistrationResponse> recentRegistrations,
+        List<CreateRegistrationResponse> recentRegistrations,
         List<AchievementResponse> achievements
 ) {
 }
